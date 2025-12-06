@@ -29,9 +29,41 @@ is_running() {
   return 1
 }
 
+server_url() {
+  printf 'http://localhost:%s/bf_foot_dashboard' "$PORT"
+}
+
+open_in_browser() {
+  local url
+  url=$(server_url)
+  # If user set NO_OPEN=1, do not attempt to open a browser
+  if [ "${NO_OPEN:-0}" = "1" ]; then
+    return 0
+  fi
+
+  if command -v open >/dev/null 2>&1; then
+    open "$url" || true
+    return 0
+  fi
+
+  if command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$url" >/dev/null 2>&1 || true
+    return 0
+  fi
+
+  # Fallback to python webbrowser module if available
+  if command -v python3 >/dev/null 2>&1; then
+    python3 -m webbrowser -t "$url" >/dev/null 2>&1 || true
+    return 0
+  fi
+
+  return 1
+}
+
 start_server() {
   if is_running; then
     echo "Server already running (PID $(cat "$PIDFILE"))"
+    echo "URL: $(server_url)"
     return 0
   fi
 
@@ -43,6 +75,9 @@ start_server() {
   sleep 0.2
   if is_running; then
     echo "Started (PID $(cat "$PIDFILE"))"
+    echo "URL: $(server_url)"
+    # attempt to open the URL in the default browser (opt-out with NO_OPEN=1)
+    open_in_browser || echo "(Could not open browser automatically)"
   else
     echo "Failed to start server" >&2
     exit 1
@@ -79,6 +114,7 @@ stop_server() {
 status_server() {
   if is_running; then
     echo "Running (PID $(cat "$PIDFILE"))"
+    echo "URL: $(server_url)"
   else
     echo "Not running"
   fi
