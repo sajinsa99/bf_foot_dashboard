@@ -43,3 +43,30 @@ Customization
 - You can improve the chart (tooltips, lines, export) by editing `assets/js/app.js` to add Chart.js plugins or options.
 
 License: MIT
+
+Local server helper
+
+For convenience a small script `server.sh` is provided in this folder to start,
+stop and check the status of a simple local HTTP server that serves the
+parent `bf_foot` directory (so the dashboard can fetch `../bf_foot_scraper/data/standings.json`).
+
+Make it executable and use it as follows:
+
+```bash
+cd bf_foot_dashboard
+chmod +x server.sh
+./server.sh start    # start server on port 8080 (default)
+./server.sh status   # show status
+./server.sh stop     # stop server
+```
+
+You can change the port by setting the `PORT` environment variable, for
+example:
+
+```bash
+PORT=8000 ./server.sh start
+```
+
+The script is intentionally simple and shellcheck-friendly; it stores the
+server PID in `.server.pid` next to the script.
+
