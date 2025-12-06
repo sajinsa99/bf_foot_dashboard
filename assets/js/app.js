@@ -89,7 +89,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function renderForSeason(season) {
       const snapshots = db[season];
-      const dates = snapshots.map(s => new Date(s.date).toLocaleString());
+      // If snapshots include a numeric 'round' field for each snapshot, use
+      // French label 'Journée N' as the X axis. Otherwise fall back to timestamp.
+      const useRound = snapshots.length > 0 && snapshots.every(s => s.round !== undefined && s.round !== null);
+      const dates = useRound
+        ? snapshots.map(s => `Journée ${s.round}`)
+        : snapshots.map(s => new Date(s.date).toLocaleString());
 
       // collect unique club names
       const clubNames = Array.from(new Set(snapshots.flatMap(s => s.clubs.map(c => c.name)))).sort();
