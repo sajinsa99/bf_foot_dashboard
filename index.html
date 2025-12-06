@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>bf_foot_dashboard</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}</style>
+</head>
+<body>
+  <main>
+    <h1>bf_foot_dashboard — Ligue 1 standings evolution</h1>
+    <div id="controls">
+      <label for="seasonSelect">Season:</label>
+      <select id="seasonSelect"></select>
+
+      <label for="clubFilter">Search / Select clubs:</label>
+      <input id="clubFilter" placeholder="Type to filter clubs" />
+      <div id="clubs"></div>
+    </div>
+
+    <canvas id="chart" height="200"></canvas>
+
+    <section id="latest">
+      <h2>Latest snapshot</h2>
+      <div id="tableContainer"></div>
+    </section>
+  </main>
+
+  <script src="assets/js/app.js"></script>
+</body>
+</html>
