@@ -60,9 +60,46 @@ open_in_browser() {
   return 1
 }
 
+port_in_use() {
+  # Return 0 if something is listening on the port, 1 otherwise.
+  if command -v lsof >/dev/null 2>&1; then
+    if lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P >/dev/null 2>&1; then
+      return 0
+    fi
+    return 1
+  fi
+
+  # Fallback to netstat
+  if command -v netstat >/dev/null 2>&1; then
+    if netstat -an | grep -E "\.\b$PORT\b" | grep LISTEN >/dev/null 2>&1; then
+      return 0
+    fi
+  fi
+  return 1
+}
+
+port_owner_info() {
+  # Print process info for the process owning the listening socket on the port
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P
+    return 0
+  fi
+  if command -v netstat >/dev/null 2>&1 && command -v ps >/dev/null 2>&1; then
+    netstat -anp tcp | grep ".$PORT" | grep LISTEN || true
+  fi
+  return 0
+}
+
 start_server() {
   if is_running; then
-    echo "Server already running (PID $(cat "$PIDFILE"))"
+    echo "Server already started (PID $(cat "$PIDFILE"))"
+    echo "URL: $(server_url)"
+    return 0
+  fi
+
+  if port_in_use; then
+    echo "Port $PORT already in use — another server is listening."
+    port_owner_info
     echo "URL: $(server_url)"
     return 0
   fi
@@ -71,15 +108,16 @@ start_server() {
   # start in background and save PID
   (cd "$ROOT_DIR" && nohup python3 -m http.server "$PORT" >/dev/null 2>&1 & echo $! > "$PIDFILE")
 
-  # short wait and verify
-  sleep 0.2
-  if is_running; then
-    echo "Started (PID $(cat "$PIDFILE"))"
+  # short wait and verify the port is now listening
+  sleep 0.3
+  if port_in_use; then
+    # If port is in use but our PID file points to a dead process, try to find the listening PID
+    echo "Started (PID $(cat "$PIDFILE" 2>/dev/null || echo 'unknown'))"
     echo "URL: $(server_url)"
-    # attempt to open the URL in the default browser (opt-out with NO_OPEN=1)
     open_in_browser || echo "(Could not open browser automatically)"
   else
-    echo "Failed to start server" >&2
+    rm -f "$PIDFILE" 2>/dev/null || true
+    echo "Failed to start server: nothing is listening on port $PORT" >&2
     exit 1
   fi
 }
@@ -90,7 +128,8 @@ stop_server() {
     return 0
   fi
   pid=$(cat "$PIDFILE")
-  echo "Stopping server (PID $pid)"
+  echo "Stopping server (PID $pid) — attempting graceful shutdown"
+  # Try graceful termination first
   kill "$pid" 2>/dev/null || true
 
   # wait a short time for process to exit
@@ -103,11 +142,13 @@ stop_server() {
   done
 
   if kill -0 "$pid" 2>/dev/null; then
-    echo "Server did not exit, sending SIGKILL"
+    echo "Process did not exit after TERM; forcing kill (SIGKILL)"
     kill -9 "$pid" 2>/dev/null || true
+    # give a moment for kernel to reap
+    sleep 0.1
   fi
 
-  rm -f "$PIDFILE"
+  rm -f "$PIDFILE" 2>/dev/null || true
   echo "Stopped"
 }
 
