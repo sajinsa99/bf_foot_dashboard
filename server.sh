@@ -63,7 +63,8 @@ open_in_browser() {
 port_in_use() {
   # Return 0 if something is listening on the port, 1 otherwise.
   if command -v lsof >/dev/null 2>&1; then
-    if lsof -iTCP:"$PORT" -sTCP:LISTEN -n -P >/dev/null 2>&1; then
+    # Check both IPv4 and IPv6
+    if lsof -i :"$PORT" 2>/dev/null | grep LISTEN >/dev/null 2>&1; then
       return 0
     fi
     return 1
@@ -123,33 +124,65 @@ start_server() {
 }
 
 stop_server() {
-  if ! is_running; then
+  if is_running; then
+    pid=$(cat "$PIDFILE")
+    echo "Stopping server (PID $pid) — attempting graceful shutdown"
+    # Try graceful termination first
+    kill "$pid" 2>/dev/null || true
+
+    # wait a short time for process to exit
+    for i in 1 2 3 4 5; do
+      if kill -0 "$pid" 2>/dev/null; then
+        sleep 0.2
+      else
+        break
+      fi
+    done
+
+    if kill -0 "$pid" 2>/dev/null; then
+      echo "Process did not exit after TERM; forcing kill (SIGKILL)"
+      kill -9 "$pid" 2>/dev/null || true
+      # give a moment for kernel to reap
+      sleep 0.1
+    fi
+
+    rm -f "$PIDFILE" 2>/dev/null || true
+    echo "Stopped"
+    return 0
+  fi
+
+  # If no PID file or process not running, check if port is still in use
+  if port_in_use; then
+    echo "No server started by this script, but port $PORT is still in use. Attempting to kill any process on this port."
+    # Try to kill all processes listening on the port
+    if command -v lsof >/dev/null 2>&1; then
+      pids=$(lsof -t -i :"$PORT" -sTCP:LISTEN)
+      if [ -n "$pids" ]; then
+        echo "Killing PIDs: $pids"
+        kill $pids 2>/dev/null || true
+        sleep 0.2
+        # If still running, force kill
+        for pid in $pids; do
+          if kill -0 "$pid" 2>/dev/null; then
+            echo "Force killing PID $pid"
+            kill -9 "$pid" 2>/dev/null || true
+          fi
+        done
+      fi
+    fi
+    # Check if port is now free
+    if port_in_use; then
+      echo "Failed to free port $PORT. Manual intervention may be required."
+      port_owner_info
+      return 1
+    else
+      echo "Port $PORT is now free."
+      return 0
+    fi
+  else
     echo "Server not running"
     return 0
   fi
-  pid=$(cat "$PIDFILE")
-  echo "Stopping server (PID $pid) — attempting graceful shutdown"
-  # Try graceful termination first
-  kill "$pid" 2>/dev/null || true
-
-  # wait a short time for process to exit
-  for i in 1 2 3 4 5; do
-    if kill -0 "$pid" 2>/dev/null; then
-      sleep 0.2
-    else
-      break
-    fi
-  done
-
-  if kill -0 "$pid" 2>/dev/null; then
-    echo "Process did not exit after TERM; forcing kill (SIGKILL)"
-    kill -9 "$pid" 2>/dev/null || true
-    # give a moment for kernel to reap
-    sleep 0.1
-  fi
-
-  rm -f "$PIDFILE" 2>/dev/null || true
-  echo "Stopped"
 }
 
 status_server() {
@@ -157,7 +190,12 @@ status_server() {
     echo "Running (PID $(cat "$PIDFILE"))"
     echo "URL: $(server_url)"
   else
-    echo "Not running"
+    echo "No server started by this script"
+    if port_in_use; then
+      echo "However, port $PORT is in use by another process:"
+      port_owner_info
+      echo "URL: $(server_url)"
+    fi
   fi
 }
 

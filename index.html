@@ -10,7 +10,8 @@
 </head>
 <body>
   <main>
-    <h1>bf_foot_dashboard — Ligue 1 standings evolution</h1>
+    <h1>bf_foot_dashboard — Ligue 1 standings</h1>
+    <p>Current standings from FootMercato.net and position evolution charts from Transfermarkt.fr form tables.</p>
     <div id="controls">
       <label for="seasonSelect">Season:</label>
       <select id="seasonSelect"></select>
@@ -20,7 +21,9 @@
       <div id="clubs"></div>
     </div>
 
-    <canvas id="chart" height="200"></canvas>
+    <div id="chartContainer">
+      <canvas id="chart"></canvas>
+    </div>
 
     <section id="latest">
       <h2>Latest snapshot</h2>

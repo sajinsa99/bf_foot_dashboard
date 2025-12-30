@@ -1,32 +1,36 @@
 ```markdown
 # bf_foot_dashboard
 
-This repository is a small static dashboard that visualizes the evolution of the
-Ligue 1 standings using snapshots produced by `bf_foot_scraper`.
+Static dashboard that visualizes Ligue 1 standings data from `bf_foot_scraper`.
 
-How it works
-- The dashboard expects the scraper output to be available at `../bf_foot_scraper/data/standings.json`.
-- Open `index.html` served from a static server (see notes) to interact with the charts.
-
-# bf_foot_dashboard
-
-Static dashboard that visualizes the evolution of Ligue 1 standings using the
-snapshots produced by `bf_foot_scraper`.
+**Features:**
+- Current standings table from FootMercato.net (wins, draws, losses, goals, etc.)
+- Position evolution charts from Transfermarkt.fr form tables (when multiple snapshots available)
+- Season selector and club filtering
 
 Quick start (local)
 
-1. Make sure the scraper has run at least once and `bf_foot_scraper/data/standings.json` exists.
-2. Serve the `bf_foot` parent folder so the dashboard can fetch the JSON using a relative path:
+1. Make sure the scraper has run and `bf_foot_scraper/data/standings.json` exists.
+2. Serve the `bf_foot` parent folder:
 
 ```bash
 cd /path/to/bf_foot
-python3 -m http.server 8080
+./bf_foot_dashboard/server.sh start
 # open http://localhost:8080/bf_foot_dashboard in your browser
 ```
 
 How it works
-- `index.html` loads `assets/js/app.js`, which fetches `../bf_foot_scraper/data/standings.json` by default.
-- The UI provides a season selector, club filter / selector, and a Chart.js line chart showing club positions over time (Y is inverted so 1 is at the top).
+- `index.html` loads `assets/js/app.js`, which fetches `../bf_foot_scraper/data/standings.json`
+- Automatically detects data type: current standings vs. evolution data
+- Shows appropriate UI (table only for current standings, chart + table for evolution)
+
+Data sources
+- **FootMercato.net**: Current Ligue 1 standings with full statistics
+- **Transfermarkt.fr**: Form tables per matchday (position evolution over time)
+
+Deployment notes
+- For GitHub Pages: copy `data/standings.json` or update fetch URL in `assets/js/app.js`
+- The dashboard filters out corrupted data automatically
 
 Deployment notes
 - If you want to host the dashboard on GitHub Pages, either:
