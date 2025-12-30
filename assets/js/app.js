@@ -157,6 +157,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (seasons.length === 0) throw new Error('No data found in standings.json');
 
     function renderForSeason(season, overrideSnapshots = null, standingsType = 'general') {
+      // Capture currently selected clubs BEFORE re-rendering
+      if (!isFirstLoad) {
+        selectedClubs = new Set(Array.from(clubsContainer.querySelectorAll('input[type="checkbox"]'))
+          .filter(c => c.checked)
+          .map(c => c.nextSibling.textContent));
+      }
+      
       let snapshots = overrideSnapshots || (season ? db[season] : []);
       
       // Filter by standings type
@@ -197,18 +204,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       const clubNames = Array.from(new Set(snapshots.flatMap(s => (s.clubs && Array.isArray(s.clubs)) ? s.clubs.map(c => c.name) : []))).sort();
       clubsContainer.innerHTML = '';
       
-      if (isEvolutionData) {
-        // Show checkboxes for chart selection
-        clubNames.forEach(name => {
-          const { wrapper, cb } = createCheckbox('cb_' + name.replace(/[^a-z0-9]/gi,'_'), name);
-          clubsContainer.appendChild(wrapper);
-          cb.addEventListener('change', updateChart);
-        });
-      } else {
-        // Single snapshot - show table only
-        clubsContainer.innerHTML = '<p>Current standings (single snapshot)</p>';
-      }
-
       // show latest snapshot as table
       tableContainer.innerHTML = '';
       const latestSnapshot = snapshots[snapshots.length - 1];
@@ -217,24 +212,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else {
         tableContainer.innerHTML = '<p>No table data available</p>';
       }
-
-      function updateChart() {
-        if (!isEvolutionData) return;
-        const selected = Array.from(clubsContainer.querySelectorAll('input[type=checkbox]'))
-          .filter(i => i.checked)
-          .map(i => i.nextSibling.textContent);
-        const datasets = prepareDatasets(dates, snapshots, selected);
-        if (chart) chart.destroy();
-        chart = makeChart(ctx, dates, datasets);
-      }
-
+      
       if (isEvolutionData) {
-        // Show chart and filter elements
-        document.getElementById('chartContainer').style.display = '';
-        document.getElementById('clubFilter').style.display = '';
-        document.querySelector('label[for="clubFilter"]').style.display = '';
+        // Show checkboxes for chart selection
+        clubNames.forEach(name => {
+          const { wrapper, cb } = createCheckbox('cb_' + name.replace(/[^a-z0-9]/gi,'_'), name);
+          clubsContainer.appendChild(wrapper);
+          
+          // Restore previous selections or pre-select on first load
+          let shouldCheck = false;
+          if (isFirstLoad && (name === 'Paris SG' || name === 'Marseille')) {
+            shouldCheck = true;
+          } else if (!isFirstLoad && selectedClubs.has(name)) {
+            shouldCheck = true;
+          }
+          
+          if (shouldCheck) {
+            cb.checked = true;
+          }
+          
+          cb.addEventListener('change', updateChart);
+        });
         
-        // filter input
+        // Filter input
         clubFilter.value = '';
         clubFilter.oninput = () => {
           const q = clubFilter.value.toLowerCase();
@@ -243,34 +243,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             div.style.display = label.includes(q) ? '' : 'none';
           });
         };
-
-        // Restore previous selections or pre-select PSG and Marseille on first load
-        Array.from(clubsContainer.querySelectorAll('input[type="checkbox"]')).forEach(cb => {
-          const label = cb.nextSibling.textContent;
-          if (selectedClubs.has(label)) {
-            cb.checked = true;
-          } else if (isFirstLoad && (label === 'Paris SG' || label === 'Marseille')) {
-            cb.checked = true;
-          }
-        });
         
-        // Save selections after rendering
-        Array.from(clubsContainer.querySelectorAll('input[type="checkbox"]')).forEach(cb => {
-          cb.addEventListener('change', () => {
-            selectedClubs = new Set(Array.from(clubsContainer.querySelectorAll('input[type="checkbox"]'))
-              .filter(c => c.checked)
-              .map(c => c.nextSibling.textContent));
-          });
-        });
+        // Show chart and filter elements
+        document.getElementById('chartContainer').style.display = '';
+        document.getElementById('clubFilter').style.display = '';
+        document.querySelector('label[for="clubFilter"]').style.display = '';
         
+        console.log('Before first load update. isFirstLoad:', isFirstLoad, 'selectedClubs:', Array.from(selectedClubs));
         isFirstLoad = false;
         updateChart();
       } else {
-        // Hide chart for single snapshot
+        // Single snapshot - show table only
         if (chart) chart.destroy();
         document.getElementById('chartContainer').style.display = 'none';
         document.getElementById('clubFilter').style.display = 'none';
         document.querySelector('label[for="clubFilter"]').style.display = 'none';
+      }
+      
+      function updateChart() {
+        if (!isEvolutionData) return;
+        const selected = Array.from(clubsContainer.querySelectorAll('input[type=checkbox]'))
+          .filter(i => i.checked)
+          .map(i => i.nextSibling.textContent);
+        console.log('updateChart selected:', selected);
+        // Save selections after chart update
+        selectedClubs = new Set(selected);
+        const datasets = prepareDatasets(dates, snapshots, selected);
+        if (chart) chart.destroy();
+        chart = makeChart(ctx, dates, datasets);
       }
     }
 
