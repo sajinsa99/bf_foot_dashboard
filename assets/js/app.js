@@ -135,11 +135,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Data loaded:', Object.keys(db));
     const seasonSelect = document.getElementById('seasonSelect');
     if (!seasonSelect) throw new Error('seasonSelect element not found');
+    const standingsTypeSelect = document.getElementById('standingsTypeSelect');
+    if (!standingsTypeSelect) throw new Error('standingsTypeSelect element not found');
     const clubFilter = document.getElementById('clubFilter');
     const clubsContainer = document.getElementById('clubs');
     const tableContainer = document.getElementById('tableContainer');
     const ctx = document.getElementById('chart').getContext('2d');
     let chart = null;
+    let isFirstLoad = true;
+    let selectedClubs = new Set();
 
     const seasons = Object.keys(db).sort().reverse();
     console.log('Seasons:', seasons);
@@ -152,10 +156,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('Seasons dropdown populated:', seasonSelect.options.length);
     if (seasons.length === 0) throw new Error('No data found in standings.json');
 
-    function renderForSeason(season, overrideSnapshots = null) {
+    function renderForSeason(season, overrideSnapshots = null, standingsType = 'general') {
       let snapshots = overrideSnapshots || (season ? db[season] : []);
       
-      // Filter out corrupted snapshots and clubs
+      // Filter by standings type
+      snapshots = snapshots.filter(snap => 
+        !snap.standings_type || snap.standings_type === standingsType
+      );
       snapshots = snapshots.filter(snap => 
         snap.clubs && snap.clubs.some(c => isValidClub(c))
       ).map(snap => ({
@@ -237,13 +244,26 @@ document.addEventListener('DOMContentLoaded', async () => {
           });
         };
 
-        // pre-select PSG and Marseille
+        // Restore previous selections or pre-select PSG and Marseille on first load
         Array.from(clubsContainer.querySelectorAll('input[type="checkbox"]')).forEach(cb => {
           const label = cb.nextSibling.textContent;
-          if (label === 'Paris SG' || label === 'Marseille') {
+          if (selectedClubs.has(label)) {
+            cb.checked = true;
+          } else if (isFirstLoad && (label === 'Paris SG' || label === 'Marseille')) {
             cb.checked = true;
           }
         });
+        
+        // Save selections after rendering
+        Array.from(clubsContainer.querySelectorAll('input[type="checkbox"]')).forEach(cb => {
+          cb.addEventListener('change', () => {
+            selectedClubs = new Set(Array.from(clubsContainer.querySelectorAll('input[type="checkbox"]'))
+              .filter(c => c.checked)
+              .map(c => c.nextSibling.textContent));
+          });
+        });
+        
+        isFirstLoad = false;
         updateChart();
       } else {
         // Hide chart for single snapshot
@@ -288,9 +308,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     };
 
-    seasonSelect.addEventListener('change', () => renderForSeason(seasonSelect.value));
-    // Default to latest season
-    renderForSeason(seasons[0]);
+    seasonSelect.addEventListener('change', () => renderForSeason(seasonSelect.value, null, standingsTypeSelect.value));
+    standingsTypeSelect.addEventListener('change', () => renderForSeason(seasonSelect.value, null, standingsTypeSelect.value));
+    // Default to latest season with general standings
+    renderForSeason(seasons[0], null, 'general');
   } catch (err) {
     document.body.innerHTML = '<pre style="color:red">' + (err.stack || err) + '</pre>';
   }
