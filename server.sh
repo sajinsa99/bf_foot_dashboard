@@ -107,7 +107,7 @@ start_server() {
 
   echo "Starting static server serving '$ROOT_DIR' on port $PORT"
   # start in background and save PID
-  (cd "$ROOT_DIR" && nohup python3 -m http.server "$PORT" >/dev/null 2>&1 & echo $! > "$PIDFILE")
+  (cd "$SCRIPT_DIR" && nohup python3 server.py >/dev/null 2>&1 & echo $! > "$PIDFILE")
 
   # short wait and verify the port is now listening
   sleep 0.3
