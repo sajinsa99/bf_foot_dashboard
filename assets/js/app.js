@@ -1,6 +1,6 @@
 async function loadData() {
-  // By default this dashboard expects the scraper data to be available at ../bf_foot_scraper/data/standings.json
-  const resp = await fetch('http://localhost:8080/bf_foot_scraper/data/standings.json');
+  // By default this dashboard expects the scraper data to be available at ../bf_foot_scraper/data/seasons.json
+  const resp = await fetch('http://localhost:8080/bf_foot_scraper/data/seasons.json');
   if (!resp.ok) throw new Error('Failed to fetch data: ' + resp.status);
   const data = await resp.json();
   return data;
