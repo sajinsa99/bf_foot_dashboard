@@ -76,6 +76,27 @@ function prepareDatasets(dates, snapshots, selectedClubs) {
 }
 
 function makeChart(ctx, labels, datasets) {
+  // Dynamically determine max position based on number of clubs in the data
+  let maxPosition = 18; // default
+  if (datasets.length > 0 && datasets[0].data.length > 0) {
+    const allPositions = datasets.flatMap(d => d.data.filter(p => p !== null));
+    if (allPositions.length > 0) {
+      maxPosition = Math.max(...allPositions, 18); // at least 18, but higher if needed
+    }
+  }
+
+  // Dynamically determine X-axis tick density based on number of journeys/labels
+  let maxTicksLimit = 6; // default
+  if (labels.length > 0) {
+    if (labels.length <= 10) {
+      maxTicksLimit = labels.length; // show all if few
+    } else if (labels.length <= 20) {
+      maxTicksLimit = Math.ceil(labels.length / 2); // show ~half
+    } else {
+      maxTicksLimit = Math.ceil(labels.length / 3); // show ~third for many
+    }
+  }
+
   return new Chart(ctx, {
     type: 'line',
     data: { labels, datasets },
@@ -92,7 +113,7 @@ function makeChart(ctx, labels, datasets) {
           reverse: true,
           beginAtZero: false,
           min: 1,
-          max: 18,
+          max: maxPosition,
           ticks: { 
             stepSize: 1,
             padding: 5
@@ -110,7 +131,7 @@ function makeChart(ctx, labels, datasets) {
             maxRotation: 0,
             minRotation: 0,
             font: { size: 10 },
-            maxTicksLimit: 6
+            maxTicksLimit: maxTicksLimit
           }
         }
       },
